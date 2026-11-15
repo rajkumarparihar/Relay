@@ -78,7 +78,7 @@ const MOCK_SCENARIOS = [
       timestamp: Math.floor(Date.now() / 1000),
     },
     ai_triage: {
-      intent: 'Hardware Reset',
+      intent: 'Hardware Problem',
       sentiment: 'Frustrated',
       urgency: 'High',
       gemini_summary: 'Caller reported blinking orange lights on his living room gateway after a brief power outage. Automated diagnostics confirmed a firmware hang requiring caregiver sign-off.',
