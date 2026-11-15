@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-RelayApp-Primary: #F7A840; /* Primary color for RelayApp (Orange) */
+  --color-RelayApp-Secondary: #11D083; /* Secondary color for RelayApp (Emerald) */
+  --color-RelayApp-Tertiary: #3B1AE0; /* Tertiary color for RelayApp (Ultrasonic Blue) */
+  --color-RelayApp-Accent1: #7F96FF; /* Accent color 1 for RelayApp (Wisteria Blue) */
+  --color-RelayApp-Accent2: #E56399; /* Accent color 2 for RelayApp (Sweet Peony) */
+}
+
+body {
+  background-color: #fef1e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+@keyframes alertFlash {
+  0%, 100% {
+    background-color: #F7A840;
+    transform: scale(1);
+  }
+  50% {
+    background-color: #ffe0b2;
+    transform: scale(1.02);
+  }
+}
+
+.animate-new-request {
+  animation: alertFlash 0.8s ease-in-out 4; /* Flashes 4 times upon arrival */
+}
