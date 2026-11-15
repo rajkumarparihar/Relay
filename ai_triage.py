@@ -52,7 +52,7 @@ def analyze_transcript(transcript: str) -> dict:
             raise ValueError("GEMINI_API_KEY must be set")
         active_client = genai.Client(
             api_key=api_key,
-            http_options=genai.types.HttpOptions(timeout=8000),
+            http_options=genai.types.HttpOptions(timeout=30000),
         )
         client = active_client
 

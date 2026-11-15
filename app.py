@@ -149,6 +149,10 @@ def _normalize_passphrase(value):
 
 @app.post("/incoming-call")
 def incoming_call():
+    logger.info(
+        "Incoming caller number received from Twilio: %s",
+        request.form.get("From", "")
+    )
     attempt = _attempt_number()
     try:
         caller_config = _get_caller_config(request.form.get("From", ""))
