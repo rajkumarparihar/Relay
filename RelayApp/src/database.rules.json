@@ -1,0 +1,21 @@
+{
+  "rules": {
+    "active_calls": {
+      ".read": false,
+      ".write": false,
+      "$call_id": {
+        ".read": true,
+        "metadata": {
+          "status": {
+            ".write": "newData.isString() && (newData.val() === 'approved' || newData.val() === 'declined')"
+          }
+        },
+        "visual_diagnostic": {
+          "chert_status": {
+            ".write": "newData.isString() && newData.val() === 'launched'"
+          }
+        }
+      }
+    }
+  }
+}
