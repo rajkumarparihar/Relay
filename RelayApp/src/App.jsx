@@ -18,75 +18,48 @@ import {
   Sparkles,
   Video,
   Tag,
-  Activity
+  Activity,
+  LoaderCircle
 } from 'lucide-react';
 
-// 1. Helper to format epoch seconds from Alaina's backend
-const formatEpochTime = (epochSeconds) => {
-  if (!epochSeconds) return 'Just now';
-  // Handle if already a string (like from mock data)
-  if (typeof epochSeconds === 'string') return epochSeconds;
-  const date = new Date(epochSeconds * 1000);
+const formatEpochTime = (timestamp) => {
+  if (timestamp == null) return '';
+  const date = new Date(timestamp * 1000);
+  if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// 2. Helper to normalize a raw Firebase child snapshot into flat UI state
-const mapFirebaseCallRecord = (callId, rawData) => {
-  const metadata = rawData?.metadata || {};
-  const triage = rawData?.ai_triage || {};
-  const visual = rawData?.visual_diagnostic || {};
-
-  // Handle phones whether Alaina sends a string or an object (e.g., { senior: "...", caregiver: "..." })
-  let callerPhone = '';
-  if (typeof metadata.phones === 'string') {
-    callerPhone = metadata.phones;
-  } else if (metadata.phones && typeof metadata.phones === 'object') {
-    callerPhone = metadata.phones.senior || metadata.phones.caller || Object.values(metadata.phones) || '';
-  }
-
-  // Format optional confidence
-  let formattedConfidence = null;
-  if (triage.confidence !== undefined && triage.confidence !== null) {
-    const num = Number(triage.confidence);
-    formattedConfidence = !isNaN(num)
-      ? `${(num <= 1 ? num * 100 : num).toFixed(1)}%`
-      : String(triage.confidence);
-  }
-// Check if core fields exist before allowing caregiver actions
-  const hasRequiredFields = Boolean(metadata.senior_name && metadata.status);
+const normalizeCall = (id, data) => {
+  const metadata = data?.metadata ?? {};
+  const triage = data?.ai_triage ?? {};
+  const visual = data?.visual_diagnostic ?? {};
+  const confidence = triage.confidence;
 
   return {
-    id: callId,
-    isComplete: hasRequiredFields,
-    seniorName: metadata.senior_name || 'Unidentified Caller',
-    company: metadata.company || 'Support Line',
-    callerPhone,
-    // Never default to 'pending' on an incomplete record so buttons stay safely hidden
-    status: metadata.status || 'incomplete',
+    id,
+    seniorName: metadata.senior_name ?? '',
+    company: metadata.company ?? '',
+    status: metadata.status ?? '',
     timestamp: formatEpochTime(metadata.timestamp),
-    // AI Triage fields
-    intent: triage.intent || 'Pending Triage',
-    sentiment: triage.sentiment || 'Neutral',
-    urgency: triage.urgency || 'Medium',
-    gemini_summary: triage.gemini_summary || 'Awaiting AI incident summary from backend...',
-    confidenceScore: formattedConfidence,
-    // Visual Diagnostic fields
+    intent: triage.intent ?? '',
+    sentiment: triage.sentiment ?? '',
+    urgency: triage.urgency ?? '',
+    gemini_summary: triage.gemini_summary ?? '',
+    confidenceScore: typeof confidence === 'number' && Number.isFinite(confidence)
+      ? `${(confidence * 100).toFixed(1)}%`
+      : null,
     requires_visual: Boolean(visual.requires_visual),
-    chert_link: visual.chert_link || '',
-    chert_status: visual.chert_status || 'not_required',
+    chert_link: visual.chert_link ?? '',
+    chert_status: visual.chert_status ?? '',
   };
 };
 
-// TEMPORARY MOCK SCENARIO DATA FOR TESTING MY IMPLEMENTATION
-
-// New version with Gemini summary, intent, sentiment, and chert_link
-// Necessary to integrate with Alaina's part of the project, which will eventually replace this mock data with live Firebase data.
 const MOCK_SCENARIOS = [
   {
     metadata: {
       senior_name: 'Arthur Pendelton (Dad)',
       company: 'Comcast Support',
-      status: 'pending',
+      status: 'awaiting_caregiver',
       timestamp: Math.floor(Date.now() / 1000),
     },
     ai_triage: {
@@ -106,7 +79,7 @@ const MOCK_SCENARIOS = [
     metadata: {
       senior_name: 'Eleanor Vance (Mom)',
       company: 'First National Bank',
-      status: 'pending',
+      status: 'awaiting_caregiver',
       timestamp: Math.floor(Date.now() / 1000),
     },
     ai_triage: {
@@ -124,67 +97,6 @@ const MOCK_SCENARIOS = [
   }
 ];
 
-// New old version with Gemini summary, intent, sentiment, and chert_link
-/*const MOCK_SCENARIOS = [
-  {
-    seniorName: 'Arthur Pendelton (Dad)',
-    company: 'Comcast Support',
-    passphrase: 'blue monkey',
-    gemini_summary: 'Caller reported blinking orange lights on his living room gateway after a brief power outage. Automated diagnostics confirmed a firmware hang requiring caregiver sign-off for a remote factory reset.',
-    intent: 'Hardware Reset',
-    sentiment: 'Frustrated',
-    chert_link: 'https://example.com',
-    confidenceScore: '99.4%',
-  },
-  {
-    seniorName: 'Eleanor Vance (Mom)',
-    company: 'First National Bank',
-    passphrase: 'sunny garden',
-    gemini_summary: 'Automated fraud hold triggered on a $240 prescription pickup at CVS. Caller confirmed she is physically at the pharmacy counter and requested family verification.',
-    intent: 'Fraud Verification',
-    sentiment: 'Confused',
-    chert_link: '', // Empty on purpose to test conditional button hiding
-    confidenceScore: '98.9%',
-  },
-  {
-    seniorName: 'Arthur Pendelton (Dad)',
-    company: 'ADT Home Security',
-    passphrase: 'blue monkey',
-    gemini_summary: 'Low-battery chirp on back patio sensor. Visual inspection requested to verify sensor housing alignment before dispatching a technician.',
-    intent: 'Visual Triage',
-    sentiment: 'Calm',
-    chert_link: 'https://example.com',
-    confidenceScore: '99.6%',
-  }
-]; */
-
-// Old ver w/ issueSummary instead of Gemini summary, intent, sentiment, and chert_link
-// const MOCK_SCENARIOS = [
-//   {
-//     seniorName: 'Arthur Pendelton (Dad)',
-//     company: 'Comcast Support',
-//     passphrase: 'blue monkey',
-//     issueSummary: 'Support requires authorization to remotely factory-reset the gateway router and apply a $0 service credit.',
-//     confidenceScore: '99.4%',
-//   },
-//   {
-//     seniorName: 'Eleanor Vance (Mom)',
-//     company: 'First National Bank',
-//     passphrase: 'sunny garden',
-//     issueSummary: 'Fraud prevention flagged a $240 pharmacy charge. Approve verification to unlock her debit card immediately.',
-//     confidenceScore: '98.9%',
-//   },
-//   {
-//     seniorName: 'Arthur Pendelton (Dad)',
-//     company: 'Medicare Advantage',
-//     passphrase: 'blue monkey',
-//     issueSummary: 'Agent needs caregiver confirmation to update preferred mail-order pharmacy address on file.',
-//     confidenceScore: '99.6%',
-//   }
-// ];
-
-// END TEMPORARY MOCK SCENARIO DATA - SECTION WILL LIKELY BE REMOVED ONCE ALAINA IMPLEMENTS THE FIREBASE DATABASE.
-
 export default function App() {
   const [activeCall, setActiveCall] = useState(null);
   const [showNewAlert, setShowNewAlert] = useState(false);
@@ -192,9 +104,6 @@ export default function App() {
   const [dbError, setDbError] = useState(null);
   const isInitialLoad = useRef(true);
   const alertTimerRef = useRef(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [writeError, setWriteError] = useState(null);
-
 
   const triggerIncomingCall = (mappedPayload, shouldFlash = true) => {
     setActiveCall(mappedPayload);
@@ -208,52 +117,46 @@ export default function App() {
     }
   };
 
-    // Keep a ref to the current activeCall ID so onChildChanged always sees the latest ID
-  const activeCallIdRef = useRef(null);
-  useEffect(() => {
-    activeCallIdRef.current = activeCall?.id || null;
-  }, [activeCall?.id]);
-
   useEffect(() => {
     if (!db) return;
 
-    let unsubAdded = () => {};
-    let unsubChanged = () => {};
+    let unsubscribe = () => {};
 
     try {
       const callsRef = ref(db, 'active_calls');
 
-      // 1. Listen for brand-new calls
-      unsubAdded = onChildAdded(
+      const handleSnapshot = (snapshot, shouldFlash) => {
+        const data = snapshot.val();
+        if (!snapshot.key || !data) return;
+
+        const normalized = normalizeCall(snapshot.key, data);
+        if (shouldFlash) {
+          triggerIncomingCall(normalized, !isInitialLoad.current);
+        } else {
+          setActiveCall((current) => current?.id === normalized.id ? normalized : current);
+        }
+      };
+
+      const unsubscribeAdded = onChildAdded(
         callsRef,
-        (snapshot) => {
-          const rawData = snapshot.val();
-          if (rawData) {
-            const mapped = mapFirebaseCallRecord(snapshot.key, rawData);
-            triggerIncomingCall(mapped, !isInitialLoad.current);
-          }
-        },
+        (snapshot) => handleSnapshot(snapshot, true),
         (error) => {
           console.error('Firebase read error:', error);
           setDbError(error.message);
         }
       );
-
-      // 2. Listen for updates to existing calls (triage, status, chert_status)
-      unsubChanged = onChildChanged(
+      const unsubscribeChanged = onChildChanged(
         callsRef,
-        (snapshot) => {
-          const rawData = snapshot.val();
-          if (rawData && snapshot.key === activeCallIdRef.current) {
-            const updatedRecord = mapFirebaseCallRecord(snapshot.key, rawData);
-            setActiveCall(updatedRecord);
-          }
-        },
+        (snapshot) => handleSnapshot(snapshot, false),
         (error) => {
-          console.error('Firebase update listener error:', error);
+          console.error('Firebase change listener error:', error);
           setDbError(error.message);
         }
       );
+      unsubscribe = () => {
+        unsubscribeAdded();
+        unsubscribeChanged();
+      };
     } catch (err) {
       console.error('Firebase ref error:', err);
       setDbError(err.message);
@@ -264,17 +167,15 @@ export default function App() {
     }, 1000);
 
     return () => {
-      unsubAdded();
-      unsubChanged();
+      unsubscribe();
       clearTimeout(loadTimer);
     };
-  },);
-
+  }, []);
 
   const handleSimulateCall = () => {
     const rawMock = MOCK_SCENARIOS[scenarioIndex % MOCK_SCENARIOS.length];
     const fakeId = `SIM-${Math.floor(1000 + Math.random() * 9000)}`;
-    const mapped = mapFirebaseCallRecord(fakeId, rawMock);
+    const mapped = normalizeCall(fakeId, rawMock);
 
     triggerIncomingCall(mapped, true);
     setScenarioIndex((prev) => prev + 1);
@@ -283,61 +184,38 @@ export default function App() {
   const handleResetDemo = () => {
     setActiveCall(null);
     setShowNewAlert(false);
-    setWriteError(null);
-    setIsSubmitting(false);
   };
 
-  // Bug #2 Fix: Await Firebase confirmation before updating UI status
   const handleDecision = async (newStatus) => {
-    if (!activeCall?.id || isSubmitting) return;
-    setWriteError(null);
+    if (!activeCall?.id) return;
 
-    // Local simulation mode (no Firebase write needed)
-    if (!db || activeCall.id.startsWith('SIM-')) {
-      setActiveCall((prev) => ({ ...prev, status: newStatus }));
-      setShowNewAlert(false);
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const metadataRef = ref(db, `active_calls/${activeCall.id}/metadata`);
-      await update(metadataRef, { status: newStatus });
+    setShowNewAlert(false);
 
-      // Only update UI after Firebase confirms the write succeeded
-      setActiveCall((prev) => ({ ...prev, status: newStatus }));
-      setShowNewAlert(false);
-    } catch (error) {
-      console.error('Failed to update metadata/status:', error);
-      setWriteError(`Could not save decision (${error.message}). Please try again.`);
-    } finally {
-      setIsSubmitting(false);
+    if (db && !activeCall.id.startsWith('SIM-')) {
+      try {
+        const metadataRef = ref(db, `active_calls/${activeCall.id}/metadata`);
+        await update(metadataRef, { status: newStatus });
+        setActiveCall((prev) => prev?.id === activeCall.id ? { ...prev, status: newStatus } : prev);
+      } catch (error) {
+        console.error('Failed to update metadata/status:', error);
+        setDbError(error.message);
+      }
+    } else {
+      setActiveCall((prev) => prev?.id === activeCall.id ? { ...prev, status: newStatus } : prev);
     }
   };
 
-  // Bug #2 & #4 Fix: Confirm Chert launch write and update visible chert_status
-  const handleVisualLaunch = async (e) => {
+  const handleVisualLaunch = async () => {
     if (!activeCall?.id) return;
-    setWriteError(null);
+    setActiveCall((prev) => ({ ...prev, chert_status: 'launched' }));
 
-    if (!db || activeCall.id.startsWith('SIM-')) {
-      setActiveCall((prev) => ({ ...prev, chert_status: 'launched' }));
-      return;
-    }
-
-    // Prevent immediate navigation until Firebase logs the launch, then open link
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const visualRef = ref(db, `active_calls/${activeCall.id}/visual_diagnostic`);
-      await update(visualRef, { chert_status: 'launched' });
-
-      setActiveCall((prev) => ({ ...prev, chert_status: 'launched' }));
-      window.open(activeCall.chert_link, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Failed to update chert_status:', error);
-      setWriteError(`Could not log diagnostic launch (${error.message}).`);
-    } finally {
-      setIsSubmitting(false);
+    if (db && !activeCall.id.startsWith('SIM-')) {
+      try {
+        const visualRef = ref(db, `active_calls/${activeCall.id}/visual_diagnostic`);
+        await update(visualRef, { chert_status: 'launched' });
+      } catch (error) {
+        console.error('Failed to update chert_status:', error);
+      }
     }
   };
 
@@ -351,11 +229,8 @@ export default function App() {
 
   const getSentimentBadgeStyle = (sentiment) => {
     const s = (sentiment || '').toLowerCase();
-    if (s === 'frustrated' || s === 'distressed') {
+    if (s === 'frustrated' || s === 'distressed' || s === 'anxious') {
       return 'bg-RelayApp-Accent2/20 text-rose-950 border-RelayApp-Accent2';
-    }
-    if (s === 'anxious') {
-      return 'bg-RelayApp-Primary/25 text-amber-950 border-RelayApp-Primary';
     }
     if (s === 'calm') {
       return 'bg-RelayApp-Secondary/25 text-emerald-950 border-RelayApp-Secondary';
@@ -406,13 +281,6 @@ export default function App() {
           </div>
         )}
 
-        {/* WRITE ERROR BANNER (Bug #2 Fix) */}
-        {writeError && (
-          <div className="mx-4 mt-3 px-4 py-2.5 rounded-xl bg-rose-100 border border-rose-400 text-rose-950 text-xs font-bold">
-            ⚠ {writeError}
-          </div>
-        )}
-
         {/* Main Scrollable Content Area */}
         <main className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
           {!activeCall ? (
@@ -434,13 +302,13 @@ export default function App() {
             </div>
           ) : (
             <>
-              {/* 1. Handoff Context Banner (Now includes metadata.phones) */}
+              {/* 1. Handoff Context Banner */}
               <div className="bg-white border-l-4 border-RelayApp-Primary rounded-xl p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="bg-RelayApp-Primary/20 p-2 rounded-lg text-slate-900 shrink-0">
                     <PhoneForwarded className="w-5 h-5" />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
                         Live Call Intercepted
@@ -450,11 +318,6 @@ export default function App() {
                     <h2 className="text-base font-bold text-slate-900 mt-0.5">
                       {activeCall.seniorName}
                     </h2>
-                    {activeCall.callerPhone && (
-                      <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                        Caller ID: {activeCall.callerPhone}
-                      </p>
-                    )}
                     <p className="text-xs text-slate-600 mt-1 leading-snug">
                       Delegated from <strong>{activeCall.company}</strong> support line.
                     </p>
@@ -462,21 +325,26 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 2. Verification Strip (Confidence renders only if present) */}
-              <div className="bg-RelayApp-Accent1/15 border border-RelayApp-Accent1/40 rounded-xl px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="w-5 h-5 text-RelayApp-Tertiary shrink-0" />
-                  <p className="text-xs font-bold text-slate-900">Voice & Caller ID Verified</p>
-                </div>
-                {activeCall.confidenceScore && (
+              {/* 2. Transcript confidence is optional */}
+              {activeCall.confidenceScore !== null && (
+                <div className="bg-RelayApp-Accent1/15 border border-RelayApp-Accent1/40 rounded-xl px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="w-5 h-5 text-RelayApp-Tertiary shrink-0" />
+                    <p className="text-xs font-bold text-slate-900">Transcript confidence</p>
+                  </div>
                   <span className="text-xs font-bold bg-RelayApp-Secondary/25 text-emerald-950 px-2.5 py-0.5 rounded-md">
-                    {activeCall.confidenceScore} Match
+                    {activeCall.confidenceScore}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* 3. GEMINI AI INCIDENT BRIEFING CARD */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3.5">
+                {activeCall.urgency.toLowerCase() === 'critical' && (
+                  <div className="bg-RelayApp-Accent2 text-white border border-RelayApp-Accent2 rounded-xl px-4 py-3 text-sm font-extrabold uppercase tracking-wide">
+                    Critical urgency
+                  </div>
+                )}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-RelayApp-Accent1/20 rounded-lg text-RelayApp-Tertiary">
@@ -515,96 +383,72 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* CONDITIONAL SPONSOR FEATURE + VISIBLE CHERT STATUS (Bug #4 Fix) */}
+                {/* CONDITIONAL SPONSOR FEATURE: Depends on requires_visual */}
                 {activeCall.requires_visual && activeCall.chert_link && (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between text-xs px-1">
-                      <span className="font-bold text-slate-600">Visual Diagnostic Status:</span>
-                      <span
-                        className={`font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                          activeCall.chert_status === 'launched'
-                            ? 'bg-RelayApp-Secondary/25 text-emerald-950'
-                            : 'bg-RelayApp-Primary/25 text-amber-950'
-                        }`}
-                      >
-                        {activeCall.chert_status === 'launched' ? '✓ Launched' : 'Pending Launch'}
-                      </span>
-                    </div>
-
-                    <a
-                      href={activeCall.chert_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleVisualLaunch}
-                      className={`w-full py-3.5 px-4 font-extrabold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 ${
-                        isSubmitting
-                          ? 'bg-slate-400 text-white cursor-wait'
-                          : 'bg-RelayApp-Tertiary hover:brightness-110 text-white'
-                      }`}
-                    >
-                      <Video className="w-5 h-5 text-RelayApp-Primary" />
-                      {activeCall.chert_status === 'launched'
-                        ? 'Re-open Visual Diagnostic'
-                        : 'Initiate Visual Diagnostic'}
-                    </a>
-                  </div>
+                  <a
+                    href={activeCall.chert_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleVisualLaunch}
+                    className="w-full py-3.5 px-4 bg-RelayApp-Tertiary hover:brightness-110 text-white font-extrabold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2"
+                  >
+                    <Video className="w-5 h-5 text-RelayApp-Primary" />
+                    Initiate Visual Diagnostic
+                  </a>
                 )}
               </div>
 
-              {/* 4. Caregiver Resolution Actions (Guarded against incomplete records) */}
+              {/* 4. Caregiver Resolution Actions */}
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
                   Caregiver Authorization
                 </h4>
 
-                {!activeCall.isComplete || activeCall.status === 'incomplete' ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-                    <p className="text-xs font-bold text-amber-900">
-                      Syncing full call details from backend...
-                    </p>
+                {activeCall.status === 'authenticating' && (
+                  <div className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-slate-600">
+                    <LoaderCircle className="w-4 h-4 animate-spin" />
+                    Authenticating caller
                   </div>
-                ) : activeCall.status === 'pending' ? (
+                )}
+
+                {activeCall.status === 'awaiting_caregiver' && (
                   <div className="space-y-2.5">
                     <button
-                      disabled={isSubmitting}
-                      onClick={() => handleDecision('approved')}
-                      className="w-full py-3.5 px-4 bg-RelayApp-Secondary hover:brightness-95 disabled:opacity-50 text-slate-950 font-extrabold text-base rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                      onClick={() => handleDecision('resolved')}
+                      className="w-full py-3.5 px-4 bg-RelayApp-Secondary hover:brightness-95 text-slate-950 font-extrabold text-base rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {isSubmitting ? 'Confirming with Server...' : 'Approve & Resolve'}
+                      Approve & Resolve
                     </button>
 
                     <button
-                      disabled={isSubmitting}
                       onClick={() => handleDecision('declined')}
-                      className="w-full py-3 px-4 bg-white border-2 border-RelayApp-Accent2 text-slate-900 hover:bg-RelayApp-Accent2/10 disabled:opacity-50 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-3 px-4 bg-white border-2 border-RelayApp-Accent2 text-slate-900 hover:bg-RelayApp-Accent2/10 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <XCircle className="w-5 h-5 text-RelayApp-Accent2" />
-                      {isSubmitting ? 'Saving...' : 'Decline & Request Callback'}
+                      Decline & Request Callback
                     </button>
                   </div>
-                ) : activeCall.status === 'approved' ? (
+                )}
+
+                {activeCall.status === 'resolved' && (
                   <div className="bg-RelayApp-Secondary/20 border border-RelayApp-Secondary rounded-xl p-4 text-center space-y-1">
                     <p className="text-sm font-extrabold text-emerald-950">
-                      ✓ Authorization Confirmed
+                      ✓ Request Resolved
                     </p>
                     <p className="text-xs text-emerald-900">
-                      {activeCall.seniorName.split(' ')} has been notified via automated voice update.
+                      {activeCall.seniorName.split(' ')[0]} has been notified via automated voice update.
                     </p>
                   </div>
-                ) : activeCall.status === 'declined' ? (
+                )}
+
+                {activeCall.status === 'declined' && (
                   <div className="bg-RelayApp-Accent2/15 border border-RelayApp-Accent2 rounded-xl p-4 text-center space-y-1">
                     <p className="text-sm font-extrabold text-rose-950">
                       ✕ Request Declined
                     </p>
                     <p className="text-xs text-rose-900">
                       A human agent has been queued to call you directly.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
-                    <p className="text-xs font-bold text-slate-700 uppercase">
-                      Current Status: {activeCall.status}
                     </p>
                   </div>
                 )}
@@ -663,5 +507,4 @@ export default function App() {
       </aside>
     </div>
   );
-}  
-
+}
