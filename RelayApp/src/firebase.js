@@ -3,9 +3,9 @@ import { getDatabase } from "firebase/database";
 
 // Replace these values with your actual Firebase project credentials
 const firebaseConfig = {
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "relay-e7436.firebaseapp.com",
-  databaseURL: process.env.FIREBASE_DB_URL,
+  databaseURL: import.meta.env.VITE_FIREBASE_DB_URL,
   projectId: "relay-e7436",
   storageBucket: "relay-e7436.appspot.com",
   messagingSenderId: "243231221497",
@@ -16,13 +16,12 @@ const firebaseConfig = {
 
 let db = null;
 try {
-    // ONLY initialize the following if the real credentials are pasted in.
-    if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-        const app = initializeApp(firebaseConfig);
-        db = getDatabase(app);
-    }
+  if (firebaseConfig.apiKey && firebaseConfig.databaseURL) {
+    const app = initializeApp(firebaseConfig);
+    db = getDatabase(app);
+  }
 } catch (error) { 
-    console.warn("Firebase running in local demo mode only:", error.message);
+  console.warn("Firebase running in local demo mode only:", error.message);
 }
 
 export {db};
