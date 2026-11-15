@@ -36,9 +36,9 @@ def process_incoming_call(
         triage_data, caller_phone, caregiver_phone,
         confidence=confidence, chert_link=chert_link, status=status,
     )
-        try:
+    try:
             write_call_record(call_id, payload) 
-        except Exception:
+    except Exception:
             logger.exception("Could not save call %s", call_id)
             raise
     return payload
