@@ -11,9 +11,10 @@ def process_incoming_call(
     call_id: str,
     caller_phone: str,
     transcript: str,
-    caregiver_phone: str = "+15559876543",
+    caregiver_phone: str,
     confidence: float | None = None,
     passphrase_verified: bool = False,
+    senior_name: str | None = None,
 ) -> dict:
     fallback_triage = {
         "intent": "Other",
@@ -35,11 +36,11 @@ def process_incoming_call(
     payload = build_call_record(
         triage_data, caller_phone, caregiver_phone,
         confidence=confidence, chert_link=chert_link, status=status,
+        senior_name=senior_name,
     )
     try:
-            write_call_record(call_id, payload) 
+        write_call_record(call_id, payload)
     except Exception:
-            logger.exception("Could not save call %s", call_id)
-            raise
+        logger.exception("Could not save call %s", call_id)
+        raise
     return payload
-

@@ -54,3 +54,28 @@ We are also proud of perfectly weaving the Google Gemini and Chert AI sponsor AP
 Our primary go-to-market strategy is a B2B enterprise rollout to drastically reduce Average Handle Time (AHT) for utility companies, banks, and ISPs.
 
 Technically, we plan to upgrade our voice passphrase system to true deep-learning acoustic biometrics for seamless identity verification. We also want to build direct API integrations into Zendesk and Salesforce so that when a caregiver clicks "Approve" on their GoDaddy-hosted dashboard, it instantly updates the enterprise call center's CRM. Finally, we envision expanding the dashboard into a unified "Family Hub" to manage a parent's telecom, banking, and medical portals all in one place.
+
+## Running the Flask voice webhook
+
+Install the Python dependencies with `pip install -r requirements.txt`, configure
+`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`,
+`GEMINI_API_KEY`, `FIREBASE_KEY_PATH`, and `FIREBASE_DB_URL`, then start the
+service with `python app.py`. Twilio should send voice webhooks to
+`/incoming-call`. Requests are validated with `TWILIO_AUTH_TOKEN`.
+
+Configure caller-specific passphrases and caregiver details with
+`RELAY_CALLERS_JSON`, a JSON object keyed by the caller's E.164 phone number.
+Each value must contain `passphrase`, `caregiver_phone`, and `senior_name`.
+`RELAY_DEMO_MODE` is off unless set to `1`; when enabled, unknown callers use
+`RELAY_DEMO_PASSPHRASE`, `RELAY_DEMO_CAREGIVER_PHONE`, and
+`RELAY_DEMO_SENIOR_NAME`. Do not enable this outside a controlled demo.
+
+For local testing only, `RELAY_SKIP_TWILIO_VALIDATION=1` disables Twilio
+signature checks and emits a critical security warning. It is off by default
+and must not be enabled in a deployed environment. The app applies Werkzeug
+`ProxyFix` for one trusted forwarded host and protocol, so configure the reverse
+proxy accordingly.
+
+Passphrases are never written to Firebase, and phone numbers are not included
+in Firebase call metadata. Run the Flask test-client suite with
+`python -m unittest test_app`.

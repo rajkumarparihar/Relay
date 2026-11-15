@@ -12,11 +12,12 @@ mock_data = {
                 "to the Wi-Fi."
             ),
         },
-        caller_phone="+15551234567",
-        caregiver_phone="+15559876543",
+        caller_phone="+12025550100",
+        caregiver_phone="+12025550101",
         confidence=0.94,
         chert_link="https://app.trychert.com/agent/xyz123",
-        status="awaiting_caregiver"
+        status="awaiting_caregiver",
+        senior_name="Demo caller",
     ),
 }
 
