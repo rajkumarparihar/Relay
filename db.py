@@ -8,19 +8,14 @@ from firebase_admin import db as firebase_db
 
 load_dotenv()
 
-SENIOR_NAMES = {
-    "+15551234567": "Arthur Pendelton (Dad)",
-}
-
 
 def build_call_record(triage: dict, caller_phone: str, caregiver_phone: str,
                       confidence: float | None, chert_link: str | None,
-                      status: str = "authenticating") -> dict:
+                      status: str = "authenticating",
+                      senior_name: str | None = None) -> dict:
     record = {
         "metadata": {
-            "caller_phone": caller_phone,
-            "caregiver_phone": caregiver_phone,
-            "senior_name": SENIOR_NAMES.get(caller_phone, "Unknown"),
+            "senior_name": senior_name or "Unknown caller",
             "company": "Comcast Support",
             "timestamp": int(time()),
             "status": status,
@@ -66,6 +61,8 @@ def write_call_record(call_id: str, record: dict) -> None:
     updates = { # Write each metadata field by path so fields Raj added are kept
         "ai_triage": record["ai_triage"],
         "visual_diagnostic": record["visual_diagnostic"],
+        "metadata/caller_phone": None,
+        "metadata/caregiver_phone": None,
     }
     for key, value in record["metadata"].items():
         updates[f"metadata/{key}"] = value

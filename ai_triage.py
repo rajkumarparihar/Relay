@@ -50,7 +50,10 @@ def analyze_transcript(transcript: str) -> dict:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY must be set")
-        active_client = genai.Client(api_key=api_key)
+        active_client = genai.Client(
+            api_key=api_key,
+            http_options=genai.types.HttpOptions(timeout=8000),
+        )
         client = active_client
 
     # We use flash because speed is critical for phone routing
